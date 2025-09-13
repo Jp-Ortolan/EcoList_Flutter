@@ -13,6 +13,12 @@ class TranslationService {
     'Miscellaneous': 'Diversos',
     'Goat': 'Cabra',
     'Starter': 'Entrada',
+    'Side': 'Acompanhamento',
+    'Soup': 'Sopa',
+    'Salad': 'Salada',
+    'Sandwich': 'Sanduíche',
+    'Snack': 'Lanche',
+    'Drink': 'Bebida',
   };
 
   static const Map<String, String> _areaTranslations = {
@@ -45,11 +51,9 @@ class TranslationService {
     String translated = instructions;
     
     final translations = {
+      // Verbos de cozinha
       'Preheat': 'Pré-aqueça',
-      'oven': 'forno',
-      'degrees': 'graus',
-      'minutes': 'minutos',
-      'seconds': 'segundos',
+      'Heat': 'Aqueça',
       'Add': 'Adicione',
       'Mix': 'Misture',
       'Stir': 'Mexa',
@@ -58,11 +62,29 @@ class TranslationService {
       'Fry': 'Frite',
       'Boil': 'Ferva',
       'Simmer': 'Cozinhe em fogo baixo',
+      'Roast': 'Asse',
+      'Grill': 'Grelhe',
+      'Steam': 'Cozinhe no vapor',
+      'Blend': 'Bata no liquidificador',
       'Chop': 'Pique',
       'Slice': 'Corte',
       'Dice': 'Corte em cubos',
       'Grate': 'Rale',
       'Season': 'Tempere',
+      'Serve': 'Sirva',
+      'Garnish': 'Decore',
+      
+      // Temperaturas e tempos
+      'oven': 'forno',
+      'degrees': 'graus',
+      'minutes': 'minutos',
+      'seconds': 'segundos',
+      'hours': 'horas',
+      'medium heat': 'fogo médio',
+      'high heat': 'fogo alto',
+      'low heat': 'fogo baixo',
+      
+      // Ingredientes comuns
       'Salt': 'Sal',
       'Pepper': 'Pimenta',
       'Oil': 'Óleo',
@@ -84,8 +106,64 @@ class TranslationService {
       'Bread': 'Pão',
       'Vegetables': 'Legumes',
       'Fruits': 'Frutas',
+      'Potato': 'Batata',
+      'Carrot': 'Cenoura',
+      'Lettuce': 'Alface',
+      'Cucumber': 'Pepino',
+      'Lemon': 'Limão',
+      'Orange': 'Laranja',
+      'Apple': 'Maçã',
+      'Banana': 'Banana',
+      
+      // Utensílios
+      'pan': 'frigideira',
+      'pot': 'panela',
+      'bowl': 'tigela',
+      'plate': 'prato',
+      'spoon': 'colher',
+      'fork': 'garfo',
+      'knife': 'faca',
+      'cutting board': 'tábua de corte',
     };
 
+    for (final entry in translations.entries) {
+      translated = translated.replaceAll(entry.key, entry.value);
+    }
+
+    return translated;
+  }
+
+  // Traduzir nomes de receitas comuns
+  static String translateRecipeName(String recipeName) {
+    final translations = {
+      'Chicken': 'Frango',
+      'Beef': 'Carne Bovina',
+      'Pork': 'Porco',
+      'Fish': 'Peixe',
+      'Rice': 'Arroz',
+      'Pasta': 'Massa',
+      'Soup': 'Sopa',
+      'Salad': 'Salada',
+      'Sandwich': 'Sanduíche',
+      'Pizza': 'Pizza',
+      'Cake': 'Bolo',
+      'Bread': 'Pão',
+      'Eggs': 'Ovos',
+      'Potato': 'Batata',
+      'Tomato': 'Tomate',
+      'Onion': 'Cebola',
+      'Garlic': 'Alho',
+      'Cheese': 'Queijo',
+      'Milk': 'Leite',
+      'Butter': 'Manteiga',
+      'Oil': 'Óleo',
+      'Salt': 'Sal',
+      'Pepper': 'Pimenta',
+      'Sugar': 'Açúcar',
+      'Flour': 'Farinha',
+    };
+
+    String translated = recipeName;
     for (final entry in translations.entries) {
       translated = translated.replaceAll(entry.key, entry.value);
     }

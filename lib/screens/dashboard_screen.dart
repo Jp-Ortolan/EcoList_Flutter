@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import '../models/recipe.dart';
 import '../services/recipe_service.dart';
 import '../services/local_storage_service.dart';
-import '../widgets/molecules/recipe_card.dart';
+import '../services/food_service.dart';
+import '../widgets/molecules/responsive_recipe_card.dart';
 import '../widgets/atoms/custom_button.dart';
+import '../config/app_config.dart';
+import '../utils/responsive_helper.dart';
+import '../config/app_theme.dart';
 import 'favorites_screen.dart';
 import 'recipe_detail_screen.dart';
-import 'add_recipe_screen.dart';
-import 'local_recipes_screen.dart';
 import 'category_recipes_screen.dart';
+import 'foods_screen.dart';
 import '../services/translation_service.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -21,11 +23,10 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   List<Recipe> _apiRecipes = [];
-  List<Recipe> _localRecipes = [];
   List<String> _favoriteIds = [];
   List<String> _categories = [];
+  int _foodCount = 0;
   bool _isLoading = true;
-  bool _isLoadingCategories = true;
   String? _error;
 
   @override
@@ -37,16 +38,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _loadData() async {
     setState(() {
       _isLoading = true;
-      _isLoadingCategories = true;
     });
 
     try {
-      // Carregar dados em paralelo
+      // Carregar dados da API em paralelo
       await Future.wait([
         _loadCategories(),
         _loadRandomRecipes(),
-        _loadLocalRecipes(),
         _loadFavorites(),
+        _loadFoodCount(),
       ]);
     } catch (e) {
       setState(() {
@@ -55,7 +55,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     } finally {
       setState(() {
         _isLoading = false;
-        _isLoadingCategories = false;
       });
     }
   }
@@ -73,7 +72,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _loadRandomRecipes() async {
     try {
-      final recipes = await RecipeService.getRandomRecipes(6);
+      // Usar configuração para melhor performance
+      final recipes = await RecipeService.getRandomRecipes(AppConfig.maxRandomRecipes);
       setState(() {
         _apiRecipes = recipes;
       });
@@ -82,16 +82,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  Future<void> _loadLocalRecipes() async {
-    try {
-      final recipes = await LocalStorageService.loadLocalRecipes();
-      setState(() {
-        _localRecipes = recipes;
-      });
-    } catch (e) {
-      print('Erro ao carregar receitas locais: $e');
-    }
-  }
 
   Future<void> _loadFavorites() async {
     try {
@@ -101,6 +91,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
       });
     } catch (e) {
       print('Erro ao carregar favoritos: $e');
+    }
+  }
+
+  Future<void> _loadFoodCount() async {
+    try {
+      final foods = await FoodService.loadFoods();
+      setState(() {
+        _foodCount = foods.length;
+      });
+    } catch (e) {
+      print('Erro ao carregar quantidade de alimentos: $e');
     }
   }
 
@@ -126,26 +127,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Dashboard de Receitas'),
-        backgroundColor: Theme.of(context).primaryColor,
+        title: const Text('EcoList'),
+        backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () async {
-              final result = await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AddRecipeScreen(),
-                ),
-              );
-              if (result == true) {
-                _loadLocalRecipes();
-              }
-            },
-            tooltip: 'Adicionar receita',
-          ),
-        ],
+        elevation: 0,
+        centerTitle: true,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -155,37 +141,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   onRefresh: _loadData,
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.all(16),
-                    child: AnimationLimiter(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: AnimationConfiguration.toStaggeredList(
-                          duration: const Duration(milliseconds: 600),
-                          childAnimationBuilder: (widget) => SlideAnimation(
-                            verticalOffset: 50.0,
-                            child: FadeInAnimation(child: widget),
-                          ),
-                          children: [
+                    padding: ResponsiveHelper.getPadding(context),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                             _buildWelcomeSection(),
-                            const SizedBox(height: 24),
-                            _buildQuickActions(),
-                            const SizedBox(height: 24),
-                            _buildLocalRecipesSection(),
-                            const SizedBox(height: 24),
+                            SizedBox(height: ResponsiveHelper.getSpacing(context) * 2),
                             _buildApiRecipesSection(),
-                            const SizedBox(height: 24),
+                            SizedBox(height: ResponsiveHelper.getSpacing(context) * 2),
                             _buildCategoriesSection(),
-                          ],
-                        ),
-                      ),
+                      ],
                     ),
                   ),
                 ),
       bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.dashboard),
             label: "Dashboard",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.restaurant),
+            label: "Alimentos",
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.favorite),
@@ -195,6 +173,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
         currentIndex: 0,
         onTap: (index) {
           if (index == 1) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const FoodsScreen(),
+              ),
+            );
+          } else if (index == 2) {
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -209,217 +194,142 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildWelcomeSection() {
     return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Theme.of(context).primaryColor,
-            Theme.of(context).primaryColor.withOpacity(0.8),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+      margin: ResponsiveHelper.getScreenPadding(context),
+      child: Card(
+        elevation: ResponsiveHelper.getElevation(context, 8),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(ResponsiveHelper.getBorderRadius(context, 20)),
         ),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Bem-vindo ao seu',
-            style: TextStyle(
-              fontSize: 18,
-              color: Colors.white70,
-            ),
+        child: Container(
+          padding: ResponsiveHelper.getCardPadding(context),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(ResponsiveHelper.getBorderRadius(context, 20)),
+            gradient: AppTheme.primaryGradient,
           ),
-          const Text(
-            'Livro de Receitas',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '${_localRecipes.length} receitas salvas • ${_favoriteIds.length} favoritos',
-            style: const TextStyle(
-              fontSize: 14,
-              color: Colors.white70,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickActions() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Ações Rápidas',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: CustomButton(
-                text: 'Adicionar Receita',
-                onPressed: () async {
-                  final result = await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const AddRecipeScreen(),
-                    ),
-                  );
-                  if (result == true) {
-                    _loadLocalRecipes();
-                  }
-                },
-                icon: Icons.add,
-                backgroundColor: Theme.of(context).primaryColor,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: CustomButton(
-                text: 'Minhas Receitas',
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => LocalRecipesScreen(
-                        recipes: _localRecipes,
-                        onRecipeDeleted: _loadLocalRecipes,
-                      ),
-                    ),
-                  );
-                },
-                icon: Icons.book,
-                backgroundColor: Colors.orange,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildLocalRecipesSection() {
-    if (_localRecipes.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              'Minhas Receitas',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => LocalRecipesScreen(
-                      recipes: _localRecipes,
-                      onRecipeDeleted: _loadLocalRecipes,
-                    ),
-                  ),
-                );
-              },
-              child: const Text('Ver todas'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 280,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: _localRecipes.length,
-            itemBuilder: (context, index) {
-              final recipe = _localRecipes[index];
-              return Container(
-                width: 200,
-                margin: const EdgeInsets.only(right: 12),
-                child: RecipeCard(
-                  title: recipe.title,
-                  description: recipe.description,
-                  imageUrl: recipe.imageUrl,
-                  category: recipe.category,
-                  isFavorite: _isFavorite(recipe),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => RecipeDetailScreen(recipe: recipe),
-                      ),
-                    );
-                  },
-                  onFavoriteToggle: () => _toggleFavorite(recipe),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                padding: EdgeInsets.all(ResponsiveHelper.getSpacing(context)),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(ResponsiveHelper.getBorderRadius(context, 50)),
                 ),
-              );
-            },
+                child: Icon(
+                  Icons.restaurant_menu,
+                  size: ResponsiveHelper.getIconSize(context, 48),
+                  color: Colors.white,
+                ),
+              ),
+              SizedBox(height: ResponsiveHelper.getVerticalSpacing(context)),
+              Text(
+                'Bem-vindo ao EcoList!',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: ResponsiveHelper.getVerticalSpacing(context) / 2),
+              Text(
+                'Gerencie seus alimentos e descubra receitas incríveis',
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: Colors.white.withOpacity(0.9),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: ResponsiveHelper.getVerticalSpacing(context) / 2),
+              Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: ResponsiveHelper.getSpacing(context),
+                  vertical: ResponsiveHelper.getSpacing(context) / 2,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(ResponsiveHelper.getBorderRadius(context, 20)),
+                ),
+                child: Text(
+                  '${_foodCount} alimentos • ${_favoriteIds.length} favoritos',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
+
+
 
   Widget _buildApiRecipesSection() {
     if (_apiRecipes.isEmpty) return const SizedBox.shrink();
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        const Text(
+        Text(
           'Receitas Sugeridas',
           style: TextStyle(
-            fontSize: 20,
+            fontSize: ResponsiveHelper.getFontSize(context, 18),
             fontWeight: FontWeight.bold,
           ),
+          textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 280,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: _apiRecipes.length,
-            itemBuilder: (context, index) {
-              final recipe = _apiRecipes[index];
-              return Container(
-                width: 200,
-                margin: const EdgeInsets.only(right: 12),
-                child: RecipeCard(
-                  title: recipe.title,
-                  description: recipe.description,
-                  imageUrl: recipe.imageUrl,
-                  category: recipe.category,
-                  isFavorite: _isFavorite(recipe),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => RecipeDetailScreen(recipe: recipe),
+        SizedBox(height: ResponsiveHelper.getSpacing(context)),
+        ResponsiveHelper.isMobile(context)
+            ? Column(
+                children: _apiRecipes.take(3).map((recipe) {
+                  return ResponsiveRecipeCard(
+                    title: recipe.title,
+                    description: recipe.description,
+                    imageUrl: recipe.imageUrl,
+                    category: recipe.category,
+                    isFavorite: _isFavorite(recipe),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => RecipeDetailScreen(recipe: recipe),
+                        ),
+                      );
+                    },
+                    onFavoriteToggle: () => _toggleFavorite(recipe),
+                  );
+                }).toList(),
+              )
+            : SizedBox(
+                height: ResponsiveHelper.getCardHeight(context),
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _apiRecipes.length,
+                  itemBuilder: (context, index) {
+                    final recipe = _apiRecipes[index];
+                    return SizedBox(
+                      width: ResponsiveHelper.getCardWidth(context),
+                      child: ResponsiveRecipeCard(
+                        title: recipe.title,
+                        description: recipe.description,
+                        imageUrl: recipe.imageUrl,
+                        category: recipe.category,
+                        isFavorite: _isFavorite(recipe),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => RecipeDetailScreen(recipe: recipe),
+                            ),
+                          );
+                        },
+                        onFavoriteToggle: () => _toggleFavorite(recipe),
                       ),
                     );
                   },
-                  onFavoriteToggle: () => _toggleFavorite(recipe),
                 ),
-              );
-            },
-          ),
-        ),
+              ),
       ],
     );
   }
@@ -428,45 +338,140 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (_categories.isEmpty) return const SizedBox.shrink();
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        const Text(
-          'Categorias',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: EdgeInsets.all(ResponsiveHelper.getSpacing(context) / 2),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(ResponsiveHelper.getBorderRadius(context, 12)),
+                border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3), width: 1),
+              ),
+              child: Icon(
+                Icons.category,
+                color: AppTheme.primaryColor,
+                size: ResponsiveHelper.getIconSize(context, 20),
+              ),
+            ),
+            SizedBox(width: ResponsiveHelper.getSpacing(context) / 2),
+            Text(
+              'Categorias',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textPrimaryColor,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 50,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: _categories.length,
-            itemBuilder: (context, index) {
-              final category = _categories[index];
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: CustomButton(
-                  text: TranslationService.translateCategory(category),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => CategoryRecipesScreen(categoryKey: category),
+        SizedBox(height: ResponsiveHelper.getSpacing(context)),
+        ResponsiveHelper.isMobile(context)
+            ? Center(
+                child: GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: ResponsiveHelper.getSpacing(context) / 2,
+                    mainAxisSpacing: ResponsiveHelper.getSpacing(context) / 2,
+                    childAspectRatio: 2.5,
+                  ),
+                  itemCount: _categories.take(6).length,
+                  itemBuilder: (context, index) {
+                    final category = _categories[index];
+                    return _buildCategoryCard(category);
+                  },
+                ),
+              )
+            : SizedBox(
+                height: 80,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _categories.length,
+                  itemBuilder: (context, index) {
+                    final category = _categories[index];
+                    return Padding(
+                      padding: EdgeInsets.only(right: ResponsiveHelper.getSpacing(context) / 2),
+                      child: SizedBox(
+                        width: 140,
+                        child: _buildCategoryCard(category),
                       ),
                     );
                   },
-                  backgroundColor: Colors.grey.shade200,
-                  textColor: Colors.black,
-                  width: 120,
-                  height: 40,
                 ),
-              );
-            },
+              ),
+      ],
+    );
+  }
+
+  Widget _buildCategoryCard(String category) {
+    final translatedCategory = TranslationService.translateCategory(category);
+    final categoryIcon = AppTheme.getRecipeCategoryIcon(translatedCategory);
+    
+    return Card(
+      elevation: ResponsiveHelper.getElevation(context, 2),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(ResponsiveHelper.getBorderRadius(context, 12)),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(ResponsiveHelper.getBorderRadius(context, 12)),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => CategoryRecipesScreen(categoryKey: category),
+            ),
+          );
+        },
+        child: Container(
+          padding: EdgeInsets.all(ResponsiveHelper.getSpacing(context) / 2),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(ResponsiveHelper.getBorderRadius(context, 12)),
+            gradient: LinearGradient(
+              colors: [
+                AppTheme.primaryColor.withOpacity(0.05),
+                AppTheme.primaryLightColor.withOpacity(0.1),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: EdgeInsets.all(ResponsiveHelper.getSpacing(context) / 3),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(ResponsiveHelper.getBorderRadius(context, 8)),
+                  border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3), width: 1),
+                ),
+                child: Icon(
+                  categoryIcon,
+                  color: AppTheme.primaryColor,
+                  size: ResponsiveHelper.getIconSize(context, 18),
+                ),
+              ),
+              SizedBox(width: ResponsiveHelper.getSpacing(context) / 3),
+              Expanded(
+                child: Text(
+                  translatedCategory,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textPrimaryColor,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
 

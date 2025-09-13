@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../config/app_theme.dart';
+import '../../utils/responsive_helper.dart';
 
 class CustomButton extends StatelessWidget {
   final String text;
@@ -33,12 +35,12 @@ class CustomButton extends StatelessWidget {
         width: width,
         height: height,
         decoration: BoxDecoration(
-          borderRadius: borderRadius ?? BorderRadius.circular(12),
-          color: backgroundColor ?? Theme.of(context).primaryColor,
+          borderRadius: borderRadius ?? BorderRadius.circular(ResponsiveHelper.getBorderRadius(context, 12)),
+          color: backgroundColor ?? AppTheme.primaryColor,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.1),
-              blurRadius: 8,
+              blurRadius: ResponsiveHelper.getElevation(context, 8),
               offset: const Offset(0, 2),
             ),
           ],
@@ -46,7 +48,7 @@ class CustomButton extends StatelessWidget {
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            borderRadius: borderRadius ?? BorderRadius.circular(12),
+            borderRadius: borderRadius ?? BorderRadius.circular(ResponsiveHelper.getBorderRadius(context, 12)),
             onTap: isLoading ? null : onPressed,
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
@@ -67,15 +69,14 @@ class CustomButton extends StatelessWidget {
                             Icon(
                               icon,
                               color: textColor ?? Colors.white,
-                              size: 20,
+                              size: ResponsiveHelper.getIconSize(context, 20),
                             ),
-                            const SizedBox(width: 8),
+                            SizedBox(width: ResponsiveHelper.getSpacing(context) / 2),
                           ],
                           Text(
                             text,
-                            style: TextStyle(
+                            style: Theme.of(context).textTheme.labelLarge?.copyWith(
                               color: textColor ?? Colors.white,
-                              fontSize: 16,
                               fontWeight: FontWeight.w600,
                             ),
                           ),

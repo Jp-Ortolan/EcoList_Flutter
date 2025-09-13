@@ -3,7 +3,8 @@ import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import '../models/recipe.dart';
 import '../services/local_storage_service.dart';
 import '../services/recipe_service.dart';
-import '../widgets/molecules/recipe_card.dart';
+import '../widgets/molecules/responsive_recipe_card.dart';
+import '../utils/responsive_helper.dart';
 import 'recipe_detail_screen.dart';
 
 class FavoritesScreen extends StatefulWidget {
@@ -58,7 +59,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Favoritos'),
+        title: const Text('EcoList'),
         backgroundColor: Theme.of(context).primaryColor,
         foregroundColor: Colors.white,
       ),
@@ -94,41 +95,84 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                     ],
                   ),
                 )
-              : AnimationLimiter(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    itemCount: _favoriteRecipes.length,
-                    itemBuilder: (context, index) {
-                      final recipe = _favoriteRecipes[index];
-                      return AnimationConfiguration.staggeredList(
-                        position: index,
-                        duration: const Duration(milliseconds: 600),
-                        child: SlideAnimation(
-                          verticalOffset: 50.0,
-                          child: FadeInAnimation(
-                            child: RecipeCard(
-                              title: recipe.title,
-                              description: recipe.description,
-                              imageUrl: recipe.imageUrl,
-                              category: recipe.category,
-                              isFavorite: true,
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        RecipeDetailScreen(recipe: recipe),
-                                  ),
-                                );
-                              },
-                              onFavoriteToggle: () => _removeFromFavorites(recipe),
+              : ResponsiveHelper.isMobile(context)
+                  ? AnimationLimiter(
+                      child: ListView.builder(
+                        padding: ResponsiveHelper.getPadding(context),
+                        itemCount: _favoriteRecipes.length,
+                        itemBuilder: (context, index) {
+                          final recipe = _favoriteRecipes[index];
+                          return AnimationConfiguration.staggeredList(
+                            position: index,
+                            duration: const Duration(milliseconds: 600),
+                            child: SlideAnimation(
+                              verticalOffset: 50.0,
+                              child: FadeInAnimation(
+                                child: ResponsiveRecipeCard(
+                                  title: recipe.title,
+                                  description: recipe.description,
+                                  imageUrl: recipe.imageUrl,
+                                  category: recipe.category,
+                                  isFavorite: true,
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            RecipeDetailScreen(recipe: recipe),
+                                      ),
+                                    );
+                                  },
+                                  onFavoriteToggle: () => _removeFromFavorites(recipe),
+                                ),
+                              ),
                             ),
-                          ),
+                          );
+                        },
+                      ),
+                    )
+                  : AnimationLimiter(
+                      child: GridView.builder(
+                        padding: ResponsiveHelper.getPadding(context),
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: ResponsiveHelper.getCrossAxisCount(context),
+                          childAspectRatio: 0.8,
+                          crossAxisSpacing: ResponsiveHelper.getSpacing(context),
+                          mainAxisSpacing: ResponsiveHelper.getSpacing(context),
                         ),
-                      );
-                    },
-                  ),
-                ),
+                        itemCount: _favoriteRecipes.length,
+                        itemBuilder: (context, index) {
+                          final recipe = _favoriteRecipes[index];
+                          return AnimationConfiguration.staggeredGrid(
+                            position: index,
+                            duration: const Duration(milliseconds: 600),
+                            columnCount: ResponsiveHelper.getCrossAxisCount(context),
+                            child: SlideAnimation(
+                              verticalOffset: 50.0,
+                              child: FadeInAnimation(
+                                child: ResponsiveRecipeCard(
+                                  title: recipe.title,
+                                  description: recipe.description,
+                                  imageUrl: recipe.imageUrl,
+                                  category: recipe.category,
+                                  isFavorite: true,
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            RecipeDetailScreen(recipe: recipe),
+                                      ),
+                                    );
+                                  },
+                                  onFavoriteToggle: () => _removeFromFavorites(recipe),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
     );
   }
 }

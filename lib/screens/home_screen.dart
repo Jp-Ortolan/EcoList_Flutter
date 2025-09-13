@@ -8,7 +8,6 @@ import '../widgets/molecules/recipe_card.dart';
 import '../widgets/atoms/custom_button.dart';
 import 'favorites_screen.dart';
 import 'recipe_detail_screen.dart';
-import 'add_recipe_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -119,23 +118,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Receitas Deliciosas'),
+        title: const Text('EcoList'),
         backgroundColor: Theme.of(context).primaryColor,
         foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AddRecipeScreen(),
-                ),
-              );
-            },
-            tooltip: 'Adicionar receita',
-          ),
-        ],
       ),
       body: Column(
         children: [
