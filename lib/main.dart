@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/foods_screen.dart';
 import 'screens/favorites_screen.dart';
 import 'config/app_theme.dart';
+import 'core/di/service_locator.dart';
 
 void main() {
   runApp(const MyApp());
@@ -13,16 +15,19 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'EcoList',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      initialRoute: '/',
-      routes: {
-        '/': (context) => const DashboardScreen(),
-        '/foods': (context) => const FoodsScreen(),
-        '/favorites': (context) => const FavoritesScreen(),
-      },
+    return MultiProvider(
+      providers: ServiceLocator.getProviders(),
+      child: MaterialApp(
+        title: 'EcoList',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        initialRoute: '/',
+        routes: {
+          '/': (context) => const DashboardScreen(),
+          '/foods': (context) => const FoodsScreen(),
+          '/favorites': (context) => const FavoritesScreen(),
+        },
+      ),
     );
   }
 }

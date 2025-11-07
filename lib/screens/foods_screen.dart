@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import '../models/food_item.dart';
-import '../services/food_service.dart';
+import '../presentation/providers/food_provider.dart';
 import '../widgets/molecules/food_card.dart';
 import '../widgets/atoms/custom_button.dart';
 import '../utils/responsive_helper.dart';
@@ -17,17 +18,16 @@ class FoodsScreen extends StatefulWidget {
 }
 
 class _FoodsScreenState extends State<FoodsScreen> with TickerProviderStateMixin {
-  List<FoodItem> _foods = [];
-  List<FoodItem> _filteredFoods = [];
   FoodCategory? _selectedCategory;
-  bool _isLoading = true;
   late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
-    _loadFoods();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<FoodProvider>().loadFoods();
+    });
   }
 
   @override
@@ -36,54 +36,23 @@ class _FoodsScreenState extends State<FoodsScreen> with TickerProviderStateMixin
     super.dispose();
   }
 
-  Future<void> _loadFoods() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      final foods = await FoodService.loadFoods();
-      setState(() {
-        _foods = foods;
-        _filteredFoods = foods;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro ao carregar alimentos: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
   void _filterByCategory(FoodCategory? category) {
     setState(() {
       _selectedCategory = category;
-      if (category == null) {
-        _filteredFoods = _foods;
-      } else {
-        _filteredFoods = _foods.where((food) => food.category == category).toList();
-      }
     });
+    context.read<FoodProvider>().filterByCategory(category);
   }
 
-  List<FoodItem> _getFoodsByTab(int index) {
+  List<FoodItem> _getFoodsByTab(int index, List<FoodItem> filteredFoods) {
     switch (index) {
       case 0: // Todos
-        return _filteredFoods;
+        return filteredFoods;
       case 1: // Próximos do vencimento
-        return _filteredFoods.where((food) => food.isNearExpiryCheck).toList();
+        return filteredFoods.where((food) => food.isNearExpiryCheck).toList();
       case 2: // Vencidos
-        return _filteredFoods.where((food) => food.isExpiredCheck).toList();
+        return filteredFoods.where((food) => food.isExpiredCheck).toList();
       case 3: // Frescos
-        return _filteredFoods.where((food) => !food.isNearExpiryCheck && !food.isExpiredCheck).toList();
+        return filteredFoods.where((food) => !food.isNearExpiryCheck && !food.isExpiredCheck).toList();
       default:
         return [];
     }
@@ -115,7 +84,7 @@ class _FoodsScreenState extends State<FoodsScreen> with TickerProviderStateMixin
                   ),
                 );
                 if (result == true) {
-                  _loadFoods();
+                  context.read<FoodProvider>().loadFoods();
                 }
               },
               tooltip: 'Adicionar alimento',
@@ -327,11 +296,18 @@ class _FoodsScreenState extends State<FoodsScreen> with TickerProviderStateMixin
 
           // Lista de alimentos
           Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: List.generate(4, (index) {
-                return _buildFoodList(_getFoodsByTab(index));
-              }),
+            child: Consumer<FoodProvider>(
+              builder: (context, foodProvider, child) {
+                return TabBarView(
+                  controller: _tabController,
+                  children: List.generate(4, (index) {
+                    return _buildFoodList(
+                      _getFoodsByTab(index, foodProvider.filteredFoods),
+                      foodProvider.isLoading,
+                    );
+                  }),
+                );
+              },
             ),
           ),
         ],
@@ -339,8 +315,8 @@ class _FoodsScreenState extends State<FoodsScreen> with TickerProviderStateMixin
     );
   }
 
-  Widget _buildFoodList(List<FoodItem> foods) {
-    if (_isLoading) {
+  Widget _buildFoodList(List<FoodItem> foods, bool isLoading) {
+    if (isLoading) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -412,7 +388,7 @@ class _FoodsScreenState extends State<FoodsScreen> with TickerProviderStateMixin
                     ),
                   );
                   if (result == true) {
-                    _loadFoods();
+                    context.read<FoodProvider>().loadFoods();
                   }
                 },
                 icon: Icons.add,
@@ -526,8 +502,7 @@ class _FoodsScreenState extends State<FoodsScreen> with TickerProviderStateMixin
 
     if (confirmed == true) {
       try {
-        await FoodService.deleteFood(food.id);
-        _loadFoods();
+        await context.read<FoodProvider>().deleteFood(food.id);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(

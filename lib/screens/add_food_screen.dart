@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/food_item.dart';
-import '../services/food_service.dart';
+import '../presentation/providers/food_provider.dart';
 import '../widgets/atoms/custom_text_field.dart';
 import '../widgets/atoms/custom_button.dart';
 import '../utils/responsive_helper.dart';
@@ -54,7 +55,7 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
         notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
       );
 
-      await FoodService.addFood(food);
+      await context.read<FoodProvider>().addFood(food);
 
       setState(() {
         _isLoading = false;
@@ -67,7 +68,7 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.pop(context);
+        Navigator.pop(context, true);
       }
     } catch (e) {
       setState(() {
